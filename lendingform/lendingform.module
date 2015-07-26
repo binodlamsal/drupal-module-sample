@@ -1,0 +1,1067 @@
+<?php
+
+/**
+ * @file
+ * A module for creating lendingform entity.
+ */
+// Loading the Constant Defined File
+module_load_include('inc', 'lendingform', 'lendingform.constant');
+//Include block definition functions
+//module_load_include('inc', 'lendingform', 'lendingform.block');
+//Include views integration for lendingform
+//module_load_include('inc', 'lendingform', 'lendingform.views');
+
+/**
+ * Implements hook_help().
+ * This function return the help info regarding lendingform
+ * @param <type> $path
+ * @param <type> $arg
+ * @return <type>
+ */
+
+
+/**
+* Modify the drupal mail system to send HTML emails.
+*/
+class LendingformMailSystem implements MailSystemInterface {
+  /**
+   * Concatenate and wrap the e-mail body for plain-text mails.
+   *
+   * @param $message
+   *   A message array, as described in hook_mail_alter().
+   *
+   * @return
+   *   The formatted $message.
+   */
+  public function format(array $message) {
+    $message['body'] = implode("\n\n", $message['body']);
+    return $message;
+  }
+
+  /**
+   * Send an e-mail message, using Drupal variables and default settings.
+   *
+   * @see <a href="http://php.net/manual/en/function.mail.php
+" title="http://php.net/manual/en/function.mail.php
+" rel="nofollow">http://php.net/manual/en/function.mail.php
+</a>   * @see drupal_mail()
+   *
+   * @param $message
+   *   A message array, as described in hook_mail_alter().
+   * @return
+   *   TRUE if the mail was successfully accepted, otherwise FALSE.
+   */
+  public function mail(array $message) {
+    $mimeheaders = array();
+    foreach ($message['headers'] as $name => $value) {
+      $mimeheaders[] = $name . ': ' . mime_header_encode($value);
+    }
+    $line_endings = variable_get('mail_line_endings', MAIL_LINE_ENDINGS);
+    return mail(
+      $message['to'],
+      mime_header_encode($message['subject']),
+      // Note: e-mail uses CRLF for line-endings. PHP's API requires LF
+      // on Unix and CRLF on Windows. Drupal automatically guesses the
+      // line-ending format appropriate for your system. If you need to
+      // override this, adjust $conf['mail_line_endings'] in settings.php.
+      preg_replace('@\r?\n@', $line_endings, $message['body']),
+      // For headers, PHP's API suggests that we use CRLF normally,
+      // but some MTAs incorrectly replace LF with CRLF. See #234403.
+      join("\n", $mimeheaders)
+    );
+  }
+}
+
+/**
+ * Implements hook_init().
+ */
+function lendingform_init() {  
+	variable_set('mail_system', array('default-system' => 'LendingformMailSystem'));
+}
+
+
+function lendingform_help($path, $arg) {
+  if ($path == 'admin/help#lendingform') {
+    return t('A module for lending post enquiry entity and manages the forms for user and administrators');
+  }
+}
+
+/**
+ * Determine whether the current user may perform the given operation on the
+ * specified lendingform.
+ *
+ * @param $op
+ *   The operation to be performed on the lendingform. Possible values are:
+ *   - "view"
+ *   - "update"
+ *   - "delete"
+ *   - "create"
+ *   - "list"
+ * @param $lendingform
+ *   The lendingform object on which the operation is to be performed,
+ * @param $account
+ *   Optional, a user object representing the user for whom the operation is to
+ *   be performed. Determines access for a user other than the current user.
+ * @return bool TRUE if the operation may be performed, FALSE otherwise.
+ */
+function lendingform_access($op, $lendingform, $account = NULL) {
+  global $user;
+
+  $rights = &drupal_static(__FUNCTION__, array());
+
+  // grant list access only to logged in users
+  if ($op == 'list' && user_access(PERM_LENDINGFORM_VIEW, $account)) {
+    return true;
+  }
+
+
+  if (!$lendingform || !in_array($op, array('view', 'edit', 'delete', 'create'), TRUE)) {
+    // If there was no lendingform to check against, or the $op was not one of the
+    // supported ones, we return access denied.
+    return FALSE;
+  }
+  // If no user object is supplied, the access check is for the current user.
+  if (empty($account)) {
+    $account = $user;
+  }
+
+  // User #1 has all privileges:
+  if ($account->uid == 1) {
+    return TRUE;
+  } elseif ($account->uid == 0) {
+    return FALSE;
+  }
+  return FALSE;
+}
+
+/**
+ * Implements hook_menu().
+ * @return array
+ */
+function lendingform_menu() {
+    
+       
+  $items['enquirylist'] = array(
+      'title' => 'Enquiry',
+      'title callback' => 'lendingform_page_title',
+      'page callback' => 'lendingform_listing',
+      'page arguments' => array(1),
+      'access arguments' => array(PERM_ADMINISTER_LENDINGFORM),
+      'file' => 'lendingform.pages.inc',
+      'weight' => -10,
+  );  
+  
+   $items['loan/enquiry'] = array(
+      'title' => t('Apply for funding'),
+      'title callback' => 'lendingform_type_page_title',
+      'description' => 'Create a new Enquiry',
+      'page callback' => 'lendingform_page_admin',
+      'page arguments' => array('create'),
+      'access arguments' => array(PERM_LENDINGFORM_CREATE),
+      'file' => 'lendingform.admin.inc',
+      'weight' => -10,
+  );  
+  
+    $items['share/%'] = array(
+      'title' => t('Email Share'),
+      'description' => 'Email Share',
+      'page callback' => 'lendingform_share_email',
+   	  'access callback' => TRUE,
+      'weight' => -10,
+  );    
+
+    
+
+  // View all lendingform and Create lendingform
+  $items['enquiry'] = array(
+      'title' => 'Manage enquiry',
+      'title callback' => 'lendingform_page_title',
+      'page callback' => 'lendingform_listing',
+    
+      'page arguments' => array(1),
+      'access arguments' => array(PERM_ADMINISTER_LENDINGFORM),
+      'file' => 'lendingform.pages.inc',
+      'weight' => -10,
+  );
+  
+    $items['exportcsv'] = array(
+      'title' => 'Enquiry Data in CSV format',
+	  'page callback' => 'lendingform_export_csv',
+      'access arguments' => array(PERM_ADMINISTER_LENDINGFORM),
+      'weight' => -10,
+  ); 
+  
+
+  $items['enquiry/%enquiry/view'] = array(
+      'title' => t('View'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -10,
+  );
+    
+  
+    // Project Edit page
+  $items['admin/structure/enquiry/%lendingform/edit'] = array(
+      'title' => t('Edit'),
+      'page callback' => 'lendingform_page_edit',
+      'page arguments' => array(3),
+      'access arguments' => array(PERM_LENDINGFORM_EDIT),
+      'weight' => 0,
+      'type' => MENU_LOCAL_TASK,
+      'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
+      'file' => 'lendingform.form.inc',
+  );
+  
+  // lendingform Delete Page
+  $items['admin/structure/enquiry/%lendingform/delete'] = array(
+      'title' => t('Delete'),
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('lendingform_delete_confirm', 3),
+      'access callback' => 'lendingform_access',
+      'access arguments' => array('delete', 1),
+      'weight' => 1,
+      'type' => MENU_LOCAL_TASK,
+  );
+  
+
+  
+  // lendingform Manage page
+  $items['admin/structure/enquiry'] = array(
+      'title' => t('Enquiry Entities'),
+      'title callback' => 'lendingform_type_page_title',
+      'description' => 'Manage lendingform entities',
+      'page callback' => 'lendingform_page_admin',
+      'page arguments' => array('list'),
+      'access arguments' => array(PERM_ADMINISTER_LENDINGFORM),
+      'file' => 'lendingform.admin.inc',
+      'weight' => -10,
+  );
+  $items['admin/structure/enquiry/list'] = array(
+      'title' => 'List',
+      'weight' => -10,
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+
+  $items['admin/structure/enquiry/create'] = array(
+      'title' => t('Add lendingform entity'),
+      'title callback' => 'lendingform_type_page_title',
+      'description' => 'Create a new lendingform entity',
+      'page callback' => 'lendingform_page_admin',
+      'page arguments' => array('create'),
+      'access arguments' => array(PERM_LENDINGFORM_CREATE),
+      'file' => 'lendingform.admin.inc',
+      'weight' => -10,
+  );
+  
+   $items['loanboard'] = array(
+		'title' => t('Loanboard'),
+		'description' => 'MarketPlace',
+		'page callback' => 'get_loanboard',
+		'access callback' => TRUE,
+    );  
+	
+	 $items['formtest'] = array(
+		'title' => t('Form Test'),
+		'description' => 'Form Test',
+		'page callback' => 'get_formtest',
+		'access callback' => TRUE,
+    );
+	
+   $items['enquiry/%lendingform'] = array(
+      'title callback' => 'lendingform_page_title',
+      'title arguments' => array(1),
+      'page callback' =>  'lendingform_enquiry_view',
+      'page arguments' => array(1),
+	  'access callback' => TRUE,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_entity_info().
+ * Provides the basic lendingform entity info
+ * @return array
+ */
+function lendingform_entity_info() {
+  $return['lendingform'] = array(
+      'label' => t('lendingform Entity'),
+      'controller class' => 'LendingformController',
+      'base table' => 'enquiry',
+      'uri callback' => 'lendingform_uri',
+      'view callback' => 'lendingform_page_view',
+      'fieldable' => TRUE,
+      'entity keys' => array(
+          'id' => 'eid',
+          'label' => 'title',
+      ),
+      'static cache' => TRUE,
+      'bundles' => array(
+          'enquiry' => array(
+              'label' => 'Enquiry',
+              'admin' => array(
+                  'path' => 'admin/structure/enquiry/manage',
+                  'access arguments' => array(PERM_ADMINISTER_LENDINGFORM),
+              ),
+          ),
+      ),
+      'view modes' => array(
+          'full' => array(
+              'label' => t('Full content'),
+              'custom settings' => FALSE,
+          ),
+          'teaser' => array(
+              'label' => t('Teaser'),
+              'custom settings' => FALSE,
+          ),
+      ),
+  );
+  return $return;
+}
+
+/**
+ * Define a uri_callback function, namely lendingform_uri()
+ * Url for lendingform detail page
+ * @param <type> $lendingform
+ * @return <type>
+ */
+function lendingform_uri($enquiry) {
+  return array(
+      'path' => 'enquiry/' . $enquiry->eid,
+  );
+}
+
+/**
+ * Load function
+ * This function is called by "auto-loader" wildcard components
+ * Load the basic lendingform enity
+ * @param <type> $eid
+ * @param <type> $reset
+ * @return <type>
+ */
+function lendingform_load($eid = NULL, $reset = FALSE) {
+  $eids = (isset($eid) ? array($eid) : array());
+  $conditions = array();
+  $enquiry = lendingform_load_multiple($eids, $conditions, $reset);
+  return $enquiry ? reset($enquiry) : FALSE;
+}
+
+
+
+/**
+ * Helper function for lendingform_load
+ * Useful when there are many lendingformes
+ * @param <type> $eids
+ * @param <type> $reset
+ * @return <type> 
+ */
+function lendingform_load_multiple($eids = array(), $conditions = array(), $reset = FALSE) {
+  return entity_load('lendingform', $eids, $conditions, $reset);
+}
+
+// Start of the Field API
+
+/**
+ * Finds all fields of a particular field type.
+ *
+ * @param $field_type
+ *   The type of field to search for.
+ * @param $entity_type
+ *   Optional entity type to restrict the search to.
+ *
+ * @return
+ *   An array of the matching fields keyed by the field name.
+ */
+function lendingform_info_fields($field_type, $entity_type = NULL) {
+  $fields = array();
+
+  // Loop through the fields looking for any fields of the specified type.
+  foreach (field_info_fields() as $field_name => $field) {
+    if ($field['type'] == $field_type) {
+      // Add this field to the return array if no entity type was specified or
+      // if the specified type exists in the field's bundles array.
+      if (empty($entity_type) || in_array($entity_type, array_keys($field['bundles']))) {
+        $fields[$field_name] = $field;
+      }
+    }
+  }
+  return $fields;
+}
+
+/**
+ * Finds all fields of a particular entity.
+ * @return
+ *   An array of the matching fields keyed by the entity name.
+ */
+function lendingform_info_attached_fields() {
+  $fields = array();
+
+  // Loop through the fields looking for any fields of the specified type.
+  foreach (field_info_fields() as $field_name => $field) {
+
+    // if the specified type exists in the field's bundles array.
+    if (in_array('lendingform', array_keys($field['bundles']))) {
+      $fields[$field_name] = $field;
+    }
+  }
+  return $fields;
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ * These fields will appear in manage fields admin panel
+ * @return array
+ */
+function lendingform_field_extra_fields() {
+  $return = array();
+  $return[LENDINGFORM_ENTITY][LENDINGFORM_ENTITY] = array(
+      'form' => array(
+          'title' => array(
+              'label' => t('Enquiry name'),
+              'description' => t('Enquiry name'),
+              'weight' => -10,
+          ),         
+      ),
+  );
+
+  return $return;
+}
+
+/**
+ * Attempts to directly activate a field that was disabled due to its module
+ * being disabled.
+ *
+ * The normal API function for updating fields, field_update_field(), will not
+ * work on disabled fields. As a workaround, this function directly updates the
+ * database and clears the field cache if necessary.
+ *
+ * @param $field_name
+ *   The name of the field to activate.
+ *
+ * @return
+ *   Boolean indicating whether or not the field was activated.
+ */
+function lendingform_activate_field($field_name) {
+
+  $updated = db_update('field_config')
+          ->fields(array('active' => 1))
+          ->condition('field_name', $field_name, '=')
+          ->execute();
+
+  // If a row was actually updated...
+  if ($updated) {
+    // Clear the field cache to refresh the field info data.
+    field_cache_clear();
+    return TRUE;
+  }
+  return FALSE;
+}
+
+/**
+ * Enables and deletes the specified field.
+ *
+ * The normal API function for deleting fields, field_delete_field(), will not
+ * work on disabled fields. As a workaround, this function first activates the
+ * fields of the specified type and then deletes them.
+ *
+ * @param $field_name
+ *   The name of the field to enable and delete.
+ */
+function lendingform_delete_field($field_name) {
+  // In case the field is inactive, first activate it.
+  lendingform_activate_field($field_name);
+
+  // Delete the field.
+  field_delete_field($field_name);
+}
+
+/**
+ * Enables and deletes fields of the specified type.
+ *
+ * @param $type
+ *   The type of fields to enable and delete.
+ *
+ * @see itonics_sliderrating_delete_field()
+ */
+function lendingform_delete_fields($type) {
+  // Read the fields for any active or inactive field of the specified type.
+  foreach (field_read_fields(array('type' => $type), array('include_inactive' => TRUE)) as $field_name => $field) {
+    lendingform_delete_field($field_name);
+  }
+}
+
+/**
+ * Deletes the specified instance and handles field cleanup manually in case the
+ * instance is of a disabled field.
+ *
+ * @param $instance
+ *   The field instance info array to be deleted.
+ */
+function lendingform_delete_instance($instance) {
+  // First activate the instance's field if necessary.
+  $field_name = $instance['field_name'];
+  $activated = lendingform_activate_field($field_name);
+
+  // Then delete the instance.
+  field_delete_instance($instance, FALSE);
+
+  // Now check to see if there are any other instances of the field left.
+  $field = field_info_field($field_name);
+
+  if (count($field['bundles']) == 0) {
+    field_delete_field($field_name);
+  } elseif ($activated) {
+    // If there are remaining instances but the field was originally disabled,
+    // disabled it again now.
+    $field['active'] = 0;
+    field_update_field($field);
+  }
+}
+
+/**
+ * Deletes any field instance attached to entities of the specified type,
+ * regardless of whether or not the field is active.
+ *
+ * @param $entity_type
+ *   The type of entity whose fields should be deleted.
+ * @param $bundle
+ *   Optionally limit instance deletion to a specific bundle of the specified
+ *   entity type.
+ */
+function lendingform_delete_instances($entity_type, $bundle = NULL) {
+  // Prepare a parameters array to load the specified instances.
+  $params = array(
+      'entity_type' => $entity_type,
+  );
+
+  if (!empty($bundle)) {
+    $params['bundle'] = $bundle;
+  }
+
+  // Read and delete the matching field instances.
+  foreach (field_read_instances($params, array('include_inactive' => TRUE)) as $instance) {
+    lendingform_delete_instance($instance);
+  }
+}
+
+/**
+ * Function to return page title for lendingform
+ * @return <type>
+ */
+function lendingform_type_page_title($title) {
+  return t('!title', array('!title' => $title));
+}
+
+/**
+ * Returns an initialized lendingform object.
+ *
+ */
+function lendingform_add() {
+  global $user;
+
+  $lendingform = entity_get_controller('lendingform')->create();
+  drupal_set_title(t('Submit Enquiry'), PASS_THROUGH);
+  return drupal_get_form('lendingform_form', $lendingform);
+}
+
+/**
+ * This function save the lendingform add/edit form data
+ * @param <type> $lendingform
+ */
+function lendingform_save($enquiry) {
+ /* echo "<pre>";
+  print_r($enquiry);
+  exit;*/
+  return entity_get_controller('lendingform')->save($enquiry);
+}
+
+/**
+ *
+ * @param type $type
+ * @return type form
+ * 
+ * Creating lendingform
+ */
+function lendingform_new($type = '') {
+	
+  return entity_get_controller('lendingform')->create(array('type' => $type));
+}
+
+/**
+ * Function to return page title for lendingform
+ * @return <type>
+ */
+function lendingform_page_title($lendingform) {
+  if (is_object($lendingform)) {
+    return t($lendingform->loan_title);
+  } else {
+    return t($lendingform);
+  }
+}
+
+/**
+ * Create lendingform page
+ * @param <type> $lendingform
+ * @param <type> $view_mode
+ * @return <type>
+ */
+function lendingform_page_view($lendingform, $view_mode = 'full') {
+    echo $lendingform->company_name; exit;
+}
+
+/**
+ * Creates lendingform edit page
+ * @param <type> $lendingform
+ * @return <type>
+ */
+function lendingform_page_edit($enquiry) {
+ 	 global $user;
+	 foreach($user->roles as $role){
+		 $userrole = $role;
+	 }
+		    if($userrole == 'cashflow') 
+			$cond = 0;
+			if($userrole == 'equipment') 
+			$cond = 1;
+			if($userrole == 'automotive') 
+			$cond = 2;
+			if($userrole == 'commercial') 
+			$cond = 3;
+	if(($cond == $enquiry->funding_type) || ($userrole == 'administrator')){
+	 $module_path =  drupal_get_path('module', 'lendingform');
+	 drupal_add_js($module_path . '/scripts/assets/royalslider/jquery.royalslider.min.js');
+	 drupal_add_css($module_path . '/scripts/assets/royalslider/royalslider.css');
+	 drupal_add_js($module_path . '/scripts/validation.js');
+	 drupal_add_css($module_path . '/scripts/assets/royalslider/skins/default/rs-default.css');
+	 
+  	drupal_set_title(t('<em> Edit Enquiry </em> @title', array('@title' => $enquiry->company_name)), PASS_THROUGH);
+    return drupal_get_form('lendingform_form', $enquiry);
+	} else {
+		drupal_set_title(t('Access Denied'), PASS_THROUGH);
+        return theme('access_denied_page', array('vars' => ""));
+	
+	}
+
+}
+
+function lendingform_page_delete($enquiry) {
+ /* print_r($enquiry); exit;*/
+  drupal_set_title(t('<em> Delete Enquiry </em> @title', array('@title' => $enquiry->company_name)), PASS_THROUGH);
+  $form['#gallery'] = $enquiry;
+  $form['eid'] = array('#type' => 'value', '#value' => $enquiry->eid);
+  return confirm_form($form, t('Are you sure you want to delete %title ?', array('%title' => $enquiry->title)), 'enquiry/' . $enquiry->eid, t('This action cannot be undone.'), t('Delete'), t('Cancel')
+  );
+
+}
+
+
+/**
+ * This function submit the data for delete action
+ * @param <type> $form
+ * @param <type> $form_state 
+ */
+function lendingform_form_delete_submit($form, &$form_state) {
+  $destination = array();
+  if (isset($_GET['destination'])) {
+    $destination = drupal_get_destination();
+    unset($_GET['destination']);
+  }
+  $lendingform = $form['#gallery'];
+  $form_state['redirect'] = array('lendingform/' . $lendingform->eid . '/delete', array('query' => $destination));
+}
+
+/**
+ * Prompt the delete confirmation action
+ */
+function lendingform_delete_confirm($form, &$form_state, $lendingform) {
+  /*print_r($lendingform);
+  exit;*/
+  $form['#gallery'] = $lendingform;
+  $form['eid'] = array('#type' => 'value', '#value' => $lendingform->eid);
+  return confirm_form($form, t('Are you sure you want to delete %title ?', array('%title' => $lendingform->loan_title)), 'lendingform/' . $lendingform->eid, t('This action cannot be undone.'), t('Delete'), t('Cancel')
+  );
+}
+
+/**
+ * Delete data are submitted here and deleted
+ * @param <type> $form
+ * @param array $form_state
+ */
+function lendingform_delete_confirm_submit($form, &$form_state) {
+	
+  if ($form_state['values']['confirm']) {
+    
+    // delete database (also backup)
+//     siemens_local_copy_delete_database_for_lendingform($form_state['values']['eid']);
+    //siemens_dev_delete_database_for_lendingform($form_state['values']['eid']);
+    
+    $enquiry = lendingform_load($form_state['values']['eid']);
+    lendingform_delete($form_state['values']['eid']);
+
+    
+    watchdog('enquiry', 'Enquiry: <em> %title </em> is deleted .', array('%title' => $enquiry->loan_title));
+    drupal_set_message(t('Enquiry %title has been deleted.', array('%title' => $enquiry->loan_title)));
+  }
+  $form_state['redirect'] = LENDINGFORM_ADMIN_CONFIGURE;
+}
+
+/**
+ * Delete lendingform
+ */
+function lendingform_delete($eid) {
+	
+  return lendingform_delete_multiple(array($eid));
+}
+
+/**
+ * Delete Multiple lendingform
+ */
+function lendingform_delete_multiple($eids) {
+	
+  return entity_get_controller('lendingform')->delete($eids);
+}
+
+// THEMING
+/**
+ * Adds our theme specificiations to the Theme Registry.
+ * This function is useful for templating
+ */
+//function lendingform_theme($existing, $type, $theme, $path) {
+//
+//}
+
+/**
+ * Implementation of hook_permission()
+ */
+function lendingform_permission() {
+  return array(
+      PERM_ADMINISTER_LENDINGFORM => array(
+          'title' => t('Administer enquiry entity'),
+          'description' => t('Perform administration tasks for enquiry entity'),
+          'restrict access' => TRUE,
+      ),
+      PERM_LENDINGFORM_CREATE => array(
+          'title' => t('Create enquiry entity'),
+          'description' => t('User with this permission can create the enquiry entity.'),
+          'restrict access' => TRUE,
+      ),
+      PERM_LENDINGFORM_EDIT => array(
+          'title' => t('Edit enquiry entity'),
+          'description' => t('User with this permission can edit the enquiry entity.'),
+          'restrict access' => TRUE,
+      ),
+      PERM_LENDINGFORM_DELETE => array(
+          'title' => t('Delete enquiry entity'),
+          'description' => t('User with this permission can delete the enquiry entity.'),
+          'restrict access' => TRUE,
+      ),
+      PERM_LENDINGFORM_VIEW => array(
+          'title' => t('View enquiry entity'),
+          'description' => t('User with this permission can view the enquiry entity.'),
+          'restrict access' => TRUE,
+      ),
+  );
+}
+
+
+
+
+
+function lendingform_block_info(){
+     $blocks['enquiry'] = array(
+        // info: The name of the block.
+        'info' => t('enquiry Image'),
+        // Block caching options (per role, per user, etc.)
+        'cache' => DRUPAL_CACHE_PER_ROLE, // default
+    );
+    return $blocks;
+}
+function lendingform_block_view($delta = '') {
+    //The $delta parameter tells us which block is being requested.
+    switch ($delta) {
+        case 'enquiry':
+            // The subject is displayed at the top of the block. Note that it
+            // should be passed through t() for translation. The title configured
+            // for the block using Drupal UI supercedes this one.
+            $lendingform_image_content = get_all_lendingform_images();
+            $block['subject'] = t('lendingform Images');
+            // The content of the block is typically generated by calling a custom
+            // function.
+            $block['content'] = $lendingform_image_content;
+            break;
+    }
+    return $block;
+}
+function get_all_lendingform_images(){
+  
+
+ $query = db_select('lendingform', 'n')
+            ->fields('n')
+            ->execute()
+            ->fetchAll();
+    
+   $result = theme('lendingform_block_result', array('vars' => $query));
+ 
+  return $result;
+    
+}
+
+
+function lendingform_theme($existing, $type, $theme, $path){
+    
+  return array(
+         'lendingform_block_result' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'lendingform-view-template',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'user_form_result' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'user-view-template',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'loan_board_result' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'loan-view-template',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'loan_details_result' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'loan-details-template',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'form_demo_view' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'form-demo-template',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'access_denied_page' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'access_denied_page',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+		'sharethis_result' => array(
+            'variables' => array('vars' => NULL),
+            'template' => 'sharethis_result_page',
+            'path' => drupal_get_path('module', 'lendingform') . '/theme',
+        ),
+		
+  );
+}
+
+function _custom_simple_mail($message_subject, $message_body, $my_email) {
+  // These value can remain empty.
+  $site_email = variable_get('site_mail', '');
+  $my_module = '';
+  $my_mail_token = '';
+  
+  $from = "Lendingpost";
+  
+  $message = array(
+    'id' => $my_module . '_' . $my_mail_token,
+    'to' => $my_email,
+    'subject' => $message_subject,
+    'body' => array($message_body),
+    'headers' => array(
+      'From' => $from,
+      'Sender' => $from,
+      'Return-Path' => $from,
+	  'MIME-Version' => '1.0',
+	  'Content-Type' => 'text/html; charset=UTF-8;',
+      'Content-Transfer-Encoding' => '8Bit',
+      'X-Mailer' => 'Drupal'
+    ),
+  );
+  $system = drupal_mail_system($my_module, $my_mail_token);
+
+  // The format function must be called before calling the mail function. 
+  $message = $system->format($message);
+
+  if ($system->mail($message)) {
+    //drupal_set_message('Your enquiry has been sent successfully');
+  }
+  else {
+    drupal_set_message('Error on submission mail FAILURE');
+  }
+}
+
+
+function get_loanboard(){
+	$query = db_select('enquiry', 'e')->extend("pagerDefault")
+           ->fields('e')
+		   ->condition('e.workflow_status', "", "<>")
+		   ->condition('e.workflow_status', 3, "<>")
+           ->orderBy('e.eid', 'DESC')
+		   ->limit(6)
+           ->execute()
+           ->fetchAll();
+	$results = theme('loan_board_result', array('vars' => $query));
+    return $results;    
+		
+	}
+
+function lendingform_enquiry_view($enquiry) {
+	global $user;
+	foreach($user->roles as $role){
+     $userrole = $role;
+  }
+ 
+    $query = "";
+	$results = theme('loan_details_result', array('vars' => $enquiry));
+    return $results;
+   
+}
+
+function lendingform_share_email(){
+ 
+  global $base_url, $user ;  
+  foreach($user->roles as $role){
+     $userrole = $role;
+  }
+  $emailto = $_POST['email'];
+  $title = "Lendingpost loan details";
+  $sMessageContent  = "Please refer the link below to view loanpage<br/>";
+  $sMessageContent .= "<a href='".$base_url."/enquiry/".arg(1)."'>View loan Page</a>";
+  _custom_simple_mail($title, $sMessageContent, $emailto);
+
+ 
+  $enquiry = lendingform_load(arg(1));
+  $query = db_select('users', 'u')->fields('u', array('uid', 'name', 'mail'));
+  if($enquiry->funding_type == 0){
+	 $query->condition('ur.rid', array(6,3), 'IN');	  
+		  
+  } elseif($enquiry->funding_type == 1){
+	 $query->condition('ur.rid', array(7,3), 'IN'); 
+	  
+  } elseif($enquiry->funding_type == 2){
+	 $query->condition('ur.rid', array(8,3), 'IN'); 
+	  
+  } elseif($enquiry->funding_type == 3){
+	 $query->condition('ur.rid', array(9,3), 'IN'); 
+  }
+  	$query->groupBy('u.uid');
+    $query->innerJoin('users_roles', 'ur', 'u.uid = ur.uid');
+	$results = $query->execute()->fetchAll();
+		foreach($results as $res){
+		$emailto = $res->mail; 
+		$sMessageContent = "<html><head></head><body>Loan [#".$enquiry->eid."] has been enquired by lender ".$user->name;
+		
+		$sMessageContent .= "<hr /><html><head></head><body><h1><a href='".$base_url."/enquiry/".$enquiry->eid."' target = '_blank'>Click here to view loan page</a></h1><hr />";
+	   
+	   $sMessageContent .= "You have receive this notification becasue you are involved in lendingpost.<br/> For fruther more information please click ".l($base_url."/user", $base_url."/user", array('attributes' => array('target' => array('_blank'))))."";
+	   
+	   $sMessageContent .= "</body></html>";
+	  
+		
+			  
+			  $title = "Enquiry[#".$enquiry->eid."] has been enquired by ".$user->eid;
+			   _custom_simple_mail($title, $sMessageContent, $emailto);	  
+		 
+		 
+	}
+	echo "Email shared";
+	/*drupal_set_message(t('Email Shared'));
+	drupal_goto("enquiry/".$enquiry->eid."");*/
+
+
+}
+
+
+function get_formtest(){
+	$enquiry = "";
+	$results = theme('form_demo_view', array('vars' => $enquiry));
+    return $results;
+	
+	}
+	
+function lendingform_export_csv(){
+	$filename = 'export.csv';
+	$table = "enquiry";
+	$csv_terminated = "\n";
+	$csv_separator = ",";
+	$csv_enclosed = '"';
+	$csv_escaped = "\\";
+	
+	/*$eids = array();
+	foreach($nodes as $ids){
+		array_push($eids, $ids);
+	}*/
+	$schema = drupal_get_schema($table);
+
+	$fields_cnt = count($schema['fields']); 
+	$schema_insert = '';
+ 	
+	foreach ($schema['fields'] as $key=>$field)
+	{
+		$l = $csv_enclosed . str_replace($csv_enclosed, $csv_escaped . $csv_enclosed,
+			stripslashes($key)) . $csv_enclosed;
+		$schema_insert .= $l;
+		$schema_insert .= $csv_separator;
+	
+	} // end for
+ 
+	$out = trim(substr($schema_insert, 0, -1));
+	$out .= $csv_terminated;
+ 
+	
+	$result = db_select('enquiry', 'e')
+		->fields('e')
+		->execute()
+		->fetchAll();
+		
+	foreach ($result as $row)
+	{ 
+	$data = array();
+	$i = 0;
+	foreach($row as $key => $value){
+	$data[$i] = $value;
+	$i++;
+	}
+	
+		/*echo "<pre>";
+		print_r($data); exit;*/
+		$schema_insert = '';
+		for ($j = 0; $j < $fields_cnt; $j++)
+		{
+			if ($data[$j] == '0' || $data[$j] != '')
+			{
+ 
+				if ($csv_enclosed == '')
+				{
+					$schema_insert .= $data[$j];
+				} else
+				{
+					$schema_insert .= $csv_enclosed .
+					str_replace($csv_enclosed, $csv_escaped . $csv_enclosed, $data[$j]) . $csv_enclosed;
+				}
+			} else
+			{
+				$schema_insert .= '';
+			}
+ 
+			if ($j < $fields_cnt - 1)
+			{
+				$schema_insert .= $csv_separator;
+			}
+		} // end for
+ 
+		$out .= $schema_insert;
+		$out .= $csv_terminated;
+	} // end while
+ 
+	header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+	header("Content-Length: " . strlen($out));
+	// Output to browser with appropriate mime type, you choose ;)
+	header("Content-type: text/x-csv");
+	//header("Content-type: text/csv");
+	//header("Content-type: application/csv");
+	header("Content-Disposition: attachment; filename=$filename");
+	echo $out;
+	exit;
+}
+

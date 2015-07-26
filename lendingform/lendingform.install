@@ -1,0 +1,403 @@
+<?php
+
+/**
+ * 
+ * Implements hook_schema()
+ * 
+ */
+function lendingform_schema() {
+
+  $schema['enquiry'] = array(
+      'description' => 'The lendingform entity base table.',
+      'fields' => array(
+          'eid' => array(
+              'description' => 'The primary identifier for an lendingforms.',
+              'type' => 'serial',
+              'unsigned' => TRUE,
+              'not null' => TRUE,
+          ),
+		  'user_id' => array(
+              'description' => 'User Id who enquires for loan.',
+              'type' => 'int',
+              'unsigned' => TRUE,
+              'not null' => TRUE,
+          ),
+          'company_name' => array(
+              'description' => 'Company name',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'ACN_ABN' => array(
+              'description' => 'ACN/ABN',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'website' => array(
+              'description' => 'Website',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),  
+		  'business_address' => array(
+              'description' => 'Business Address',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  
+		  'suburb' => array(
+              'description' => 'Suburb Address',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  
+		  'state' => array(
+              'description' => 'State Address',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		   
+		  'postcode' => array(
+              'description' => 'Post Code',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'trading_time' => array(
+              'description' => 'Trading Time',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),  
+		  'annual_turnover' => array(
+              'description' => 'Annual Turnover',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  
+		  'accounting_system' => array(
+              'description' => 'What Accounting System is used?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  
+		  'last_finincial_report' => array(
+              'description' => 'Last Years Financial Reports available?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'tax_portal' => array(
+              'description' => 'Tax Portal Report available?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'bas_agent' => array(
+              'description' => 'Name of BAS Agent?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'current_aged_receivables' => array(
+              'description' => 'Current Aged Receivables Report?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'current_aged_creditors' => array(
+              'description' => 'Current Aged Creditors Report?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'latest_management_accoutnts' => array(
+              'description' => 'Latest Management Accounts?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'current_industry' => array(
+              'description' => 'Current Industry',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'credit_history' => array(
+              'description' => 'Credit History',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'loan_title' => array(
+              'description' => 'Loan Title',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'loan_description' => array(
+              'description' => 'Loan Description',
+              'type' => 'text',
+              'length' => 255,
+              'not null' => TRUE,
+              /*'default' => '',*/
+          ),
+		   'funding_type' => array(
+              'description' => 'Funding type',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'sort_of_cashflow' => array(
+              'description' => 'Sort of Cashflow Finance?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'sort_of_equipment' => array(
+              'description' => 'Sort of Equipment Finance?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'sort_of_automative' => array(
+              'description' => 'Sort of Automotive Finance',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'type_of_vechile' => array(
+              'description' => 'Type of Vehicle',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'make' => array(
+              'description' => 'Make',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		   'model' => array(
+              'description' => 'Make',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		   'sort_of_commercial' => array(
+              'description' => 'Sort of Commercial Finance?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'sort_of_commercial' => array(
+              'description' => 'Sort of Commercial Finance?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'security_offered' => array(
+              'description' => 'Security Offered',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'fund_amount' => array(
+              'description' => 'Funding Amount',
+              'type' => 'int',
+              'length' => 11,
+              'not null' => TRUE,
+              'default' => 0,
+          ),
+		  
+		  'need_of_funding' => array(
+              'description' => 'Why do you need funding?',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'promo_code' => array(
+              'description' => 'Promo Code',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'first_name' => array(
+              'description' => 'First Name',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'last_name' => array(
+              'description' => 'Last Name',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'position' => array(
+              'description' => 'Position',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'phone' => array(
+              'description' => 'Phone',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'email' => array(
+              'description' => 'Email',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),  
+		  'first_contact_date' => array(
+              'description' => 'First Contact Date',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'second_contact_date' => array(
+              'description' => 'Second Contact Date',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'third_contact_date' => array(
+              'description' => 'Third Contact Date',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'notes' => array(
+              'description' => 'Notes',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'lending_post_contact_email' => array(
+              'description' => 'Lending Post Contact Email',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'workflow_status' => array(
+              'description' => 'Workflow Status',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),
+		  'credit_risk' => array(
+              'description' => 'Credit Risk',
+              'type' => 'varchar',
+              'length' => 255,
+              'not null' => TRUE,
+              'default' => '',
+          ),       
+          'created' => array(
+              'description' => 'The Unix timestamp when the gallery was created.',
+              'type' => 'int',
+              'not null' => TRUE,
+              'default' => 0,
+          ),
+          'changed' => array(
+              'description' => 'The Unix timestamp when the gallery was most recently saved.',
+              'type' => 'int',
+              'not null' => TRUE,
+              'default' => 0,
+          ),
+      ),
+      'unique keys' => array(
+          'eid' => array('eid')
+      ),
+      'primary key' => array('eid'),
+  );
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+ 
+function lendingform_install() {
+//Install if some automatic process must run through drupal API	
+	
+}
+
+
+/**
+ * Implements hook_uninstall().
+ */
+ 
+function lendingform_uninstall() {
+	
+//Uninstall all the chages in database if necessay
+
+}
+
+
+
+/**
+ * Add new Field: gallery_domain_name
+ */
+function lendingform_update_9011() {
+
+  // Add a field to store domain name
+  $domain_field = array(
+      'description' => "The domain name for this gallery.",
+      'type' => 'varchar',
+      'length' => 255,
+      'not null' => FALSE,
+  );
+  db_add_field(PROJECT_BASE_TABLE, 'gallery_domain_name', $domain_field);    
+  
+}

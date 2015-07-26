@@ -1,0 +1,18 @@
+name = Lending enquiry form
+description = Enquiry form module developed for Lendingpost
+package = VIEW9 MODULES
+version = VERSION 
+core = 7.x
+
+files[] = lendingform.module
+files[] = lendingform.controller.inc
+files[] = lendingform.pages.inc
+files[] = lendingform.constant.inc
+files[] = lendingform.install
+files[] = lendingform.admin.inc
+files[] = lendingform.form.inc
+
+
+configure = admin/structure/enquiry
+
+author = Vicky Shrestha
